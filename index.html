@@ -48,7 +48,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.15.0/firebase-app.js";
 import { getDatabase, ref, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.15.0/firebase-database.js";
 
-// --- Firebase config ---
+window.addEventListener('load', () => {
+
 const firebaseConfig = {
   apiKey: "AIzaSyDnXYM7h0fJUUVT7nlLJudk4i9wCEJTx6M",
   authDomain: "anime-list-f7483.firebaseapp.com",
@@ -76,21 +77,20 @@ onValue(ref(db, "entries"), snapshot => {
 
   document.getElementById("list").innerHTML = entries.map(e => `<li>${e.name}</li>`).join("");
 
-  // Create or update wheel
+  // --- Destroy old wheel if exists ---
+  if(wheel) {
+    wheel.stopAnimation(false);
+    wheel = null;
+  }
+
   if(entries.length > 0){
     const colors = entries.map(()=>`hsl(${Math.random()*360},70%,60%)`);
-    if(!wheel){
-      wheel = new Winwheel({
-        canvasId:'wheelCanvas',
-        numSegments: entries.length,
-        segments: entries.map((e,i)=>({text:e.name, fillStyle:colors[i]})),
-        animation:{type:'spinToStop', duration:5, spins:8, callbackFinished:onSpinFinished}
-      });
-    } else {
-      wheel.segments = entries.map((e,i)=>({text:e.name, fillStyle:colors[i]}));
-      wheel.numSegments = entries.length;
-      wheel.draw();
-    }
+    wheel = new Winwheel({
+      canvasId:'wheelCanvas',
+      numSegments: entries.length,
+      segments: entries.map((e,i)=>({text:e.name, fillStyle:colors[i]})),
+      animation:{type:'spinToStop', duration:5, spins:8, callbackFinished:onSpinFinished}
+    });
   }
 });
 
@@ -127,6 +127,9 @@ function onSpinFinished(segment){
 const closeBtn = document.getElementById("closeWinner");
 if(!isHost) closeBtn.style.display="none";
 closeBtn.onclick = ()=>{document.getElementById("winnerModal").style.display="none";};
+
+}); // window.load
 </script>
+
 </body>
 </html>
