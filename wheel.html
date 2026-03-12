@@ -67,48 +67,47 @@ window.onload = function() {
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
-  // Host detection
+  // Detect host
   const urlParams = new URLSearchParams(window.location.search);
   const isHost = urlParams.get("host") === "true";
 
   let wheel;
   let entries = [];
 
-  // Listen for live entries
-  db.ref("entries").on("value", (snapshot) => {
+  // Firebase listener
+  db.ref("entries").on("value", snapshot => {
     entries = [];
     const segmentColors = [];
-    snapshot.forEach((child) => {
+    snapshot.forEach(child => {
       const name = child.val();
       entries.push({ key: child.key, name });
       segmentColors.push(`hsl(${Math.random()*360},70%,60%)`);
     });
 
-    document.getElementById("list").innerHTML = entries.map(e => `<li>${e.name}</li>`).join("");
+    document.getElementById("list").innerHTML = entries.map(e=>`<li>${e.name}</li>`).join("");
 
-    // Create wheel after Winwheel is loaded
-    wheel = new Winwheel({
-      canvasId: 'wheelCanvas',
-      numSegments: entries.length || 1,
-      segments: entries.map((e,i)=>({ fillStyle: segmentColors[i], text:e.name })),
-      animation: { type:'spinToStop', duration:5, spins:8, callbackFinished:onSpinFinished }
-    });
+    // Create Winwheel only if there are entries
+    if(entries.length > 0){
+      wheel = new Winwheel({
+        canvasId: 'wheelCanvas',
+        numSegments: entries.length,
+        segments: entries.map((e,i)=>({ text:e.name, fillStyle: segmentColors[i] })),
+        animation: { type:'spinToStop', duration:5, spins:8, callbackFinished:onSpinFinished }
+      });
+    }
   });
 
-  // Add anime entry
+  // Add Anime
   document.getElementById("addEntry").onclick = () => {
     const input = document.getElementById("nameInput");
     const name = input.value.trim();
     if(!name) return;
-
-    // Duplicate prevention
     if(entries.some(e=>e.name.toLowerCase() === name.toLowerCase())){
       alert("Anime already added!");
       return;
     }
-
     db.ref("entries").push(name);
-    input.value = "";
+    input.value="";
   };
 
   // Spin button
@@ -117,17 +116,13 @@ window.onload = function() {
     wheel.startAnimation();
   };
 
-  // Spin finished callback
+  // Spin finished
   function onSpinFinished(segment){
     const winner = segment.text;
-
-    // Show winner only to host
     if(isHost){
       document.getElementById("winnerText").innerText = winner;
       document.getElementById("winnerModal").style.display="block";
     }
-
-    // Auto-remove winner
     const winnerEntry = entries.find(e=>e.name===winner);
     if(winnerEntry) db.ref("entries/"+winnerEntry.key).remove();
   }
