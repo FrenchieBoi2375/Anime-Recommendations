@@ -67,27 +67,20 @@ window.onload = function() {
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
-  // Detect host
   const urlParams = new URLSearchParams(window.location.search);
   const isHost = urlParams.get("host") === "true";
 
   let wheel;
   let entries = [];
 
-  // Firebase listener
-  db.ref("entries").on("value", snapshot => {
-    entries = [];
-    const segmentColors = [];
-    snapshot.forEach(child => {
-      const name = child.val();
-      entries.push({ key: child.key, name });
-      segmentColors.push(`hsl(${Math.random()*360},70%,60%)`);
-    });
-
-    document.getElementById("list").innerHTML = entries.map(e=>`<li>${e.name}</li>`).join("");
-
-    // Create Winwheel only if there are entries
+  // Safe wheel creation helper
+  function createWheelSafely() {
+    if (typeof Winwheel === 'undefined') {
+      setTimeout(createWheelSafely, 50); // retry until Winwheel exists
+      return;
+    }
     if(entries.length > 0){
+      const segmentColors = entries.map(() => `hsl(${Math.random()*360},70%,60%)`);
       wheel = new Winwheel({
         canvasId: 'wheelCanvas',
         numSegments: entries.length,
@@ -95,19 +88,26 @@ window.onload = function() {
         animation: { type:'spinToStop', duration:5, spins:8, callbackFinished:onSpinFinished }
       });
     }
+  }
+
+  // Firebase listener
+  db.ref("entries").on("value", snapshot => {
+    entries = [];
+    snapshot.forEach(child => entries.push({ key: child.key, name: child.val() }));
+    document.getElementById("list").innerHTML = entries.map(e=>`<li>${e.name}</li>`).join("");
+    createWheelSafely();
   });
 
   // Add Anime
   document.getElementById("addEntry").onclick = () => {
-    const input = document.getElementById("nameInput");
-    const name = input.value.trim();
+    const name = document.getElementById("nameInput").value.trim();
     if(!name) return;
-    if(entries.some(e=>e.name.toLowerCase() === name.toLowerCase())){
+    if(entries.some(e=>e.name.toLowerCase()===name.toLowerCase())){
       alert("Anime already added!");
       return;
     }
     db.ref("entries").push(name);
-    input.value="";
+    document.getElementById("nameInput").value="";
   };
 
   // Spin button
