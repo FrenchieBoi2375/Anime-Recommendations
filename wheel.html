@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Collaborative Wheel</title>
+  <!-- Winwheel.js -->
+  <script src="https://cdn.jsdelivr.net/npm/winwheel@2.8.0/Winwheel.min.js"></script>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10/firebase-database.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f4f8;
+      text-align: center;
+      padding: 20px;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+
+    #wheelContainer {
+      display: inline-block;
+      position: relative;
+    }
+
+    #wheelCanvas {
+      border: 10px solid #4a90e2;
+      border-radius: 50%;
+      box-shadow: 0 0 30px rgba(0,0,0,0.3);
+    }
+
+    #spin {
+      margin-top: 20px;
+      padding: 15px 40px;
+      font-size: 20px;
+      background: linear-gradient(45deg, #4a90e2, #50e3c2);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+      transition: transform 0.1s;
+    }
+
+    #spin:active {
+      transform: scale(0.95);
+    }
+
+    #list {
+      margin-top: 20px;
+      font-size: 18px;
+      color: #555;
+    }
+
+    input, button.addBtn {
+      padding: 10px;
+      font-size: 16px;
+      margin-top: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+
+    button.addBtn {
+      background: linear-gradient(45deg,#50e3c2,#4a90e2);
+      color: white;
+      cursor: pointer;
+    }
+
+    /* Winner Modal */
+    #winnerModal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7);
+      z-index: 1000;
+    }
+
+    #winnerModalContent {
+      background: white;
+      width: 300px;
+      padding: 30px;
+      margin: 150px auto;
+      border-radius: 15px;
+      text-align: center;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    }
+
+    #winnerModalContent h2 {
+      color: #4a90e2;
+      margin-bottom: 15px;
+    }
+
+    #winnerModalContent p {
+      font-size: 24px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    #closeWinner {
+      margin-top: 20px;
+      padding: 10px 30px;
+      background: linear-gradient(45deg, #50e3c2, #4a90e2);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+  </style>
+</head>
+<body>
+
+<h1>Anime Recommendations</h1>
+
+<div id="wheelContainer">
+  <canvas id="wheelCanvas" width="500" height="500"></canvas>
+</div>
+<br>
+<button id="spin">SPIN</button>
+
+<div>
+  <input type="text" id="nameInput" placeholder="Enter Anime">
+  <button class="addBtn" id="addEntry">Add Name</button>
+</div>
+
+<ul id="list"></ul>
+
+<!-- Winner Modal -->
+<div id="winnerModal">
+  <div id="winnerModalContent">
+    <h2>Winner!</h2>
+    <p id="winnerText"></p>
+    <button id="closeWinner">Close</button>
+  </div>
+</div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10/firebase-app.js";
+import { getDatabase, ref, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10/firebase-database.js";
+
+// === Firebase Config ===
+const firebaseConfig = {
+  apiKey: "AIzaSyDnXYM7h0fJUUVT7nlLJudk4i9wCEJTx6M",
+  authDomain: "anime-list-f7483.firebaseapp.com",
+  databaseURL: "https://anime-list-f7483-default-rtdb.firebaseio.com",
+  projectId: "anime-list-f7483",
+  storageBucket: "anime-list-f7483.firebasestorage.app",
+  messagingSenderId: "990842266634",
+  appId: "1:990842266634:web:95f5c7559868fda0e0abf3",
+  measurementId: "G-SWL650B800"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// === Host Detection ===
+const urlParams = new URLSearchParams(window.location.search);
+const isHost = urlParams.get("host") === "true";
+
+let wheel;
+let entries = [];
+
+// === Listen for entries ===
+onValue(ref(db, "entries"), (snapshot) => {
+  entries = [];
+  const segmentColors = [];
+  snapshot.forEach(child => {
+    const name = child.val();
+    entries.push({ key: child.key, name: name });
+    segmentColors.push(`hsl(${Math.random()*360}, 70%, 60%)`);
+  });
+
+  document.getElementById("list").innerHTML = entries.map(e => `<li>${e.name}</li>`).join("");
+
+  wheel = new Winwheel({
+    canvasId: 'wheelCanvas',
+    numSegments: entries.length || 1,
+    segments: entries.map((e,i) => ({
+      fillStyle: segmentColors[i],
+      text: e.name
+    })),
+    animation: {
+      type: 'spinToStop',
+      duration: 5,
+      spins: 8,
+      callbackFinished: onSpinFinished
+    }
+  });
+});
+
+// === Add Entry Button ===
+document.getElementById("addEntry").onclick = () => {
+  const input = document.getElementById("nameInput");
+  const name = input.value.trim();
+  if(!name) return;
+
+  // Duplicate prevention
+  if(entries.some(e => e.name.toLowerCase() === name.toLowerCase())){
+    alert("Anime already added!");
+    return;
+  }
+
+  push(ref(db, "entries"), name);
+  input.value = "";
+};
+
+// === Spin Button ===
+document.getElementById("spin").onclick = () => {
+  if(!isHost) return;
+  if(!wheel || entries.length === 0) return;
+  wheel.startAnimation();
+};
+
+// === Spin Finished Callback ===
+function onSpinFinished(indicatedSegment){
+  const winner = indicatedSegment.text;
+
+  // Show winner only to host
+  if(isHost){
+    document.getElementById("winnerText").innerText = winner;
+    document.getElementById("winnerModal").style.display = "block";
+  }
+
+  // Auto-remove winner
+  const winnerEntry = entries.find(e => e.name === winner);
+  if(winnerEntry) remove(ref(db, "entries/"+winnerEntry.key));
+}
+
+// === Winner Modal Close Button ===
+const closeBtn = document.getElementById("closeWinner");
+if(!isHost) closeBtn.style.display = "none";
+closeBtn.onclick = () => {
+  document.getElementById("winnerModal").style.display = "none";
+};
+
+</script>
+
+</body>
+</html>
