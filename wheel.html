@@ -37,7 +37,7 @@
 
 <div>
   <input type="text" id="nameInput" placeholder="Enter Anime">
-  <button class="addBtn" id="addEntry">Add Name</button>
+  <button class="addBtn" id="addEntry">Add Anime</button>
 </div>
 
 <ul id="list"></ul>
@@ -52,6 +52,7 @@
 </div>
 
 <script>
+window.onload = function() {
   // Initialize Firebase
   const firebaseConfig = {
     apiKey: "AIzaSyDnXYM7h0fJUUVT7nlLJudk4i9wCEJTx6M",
@@ -63,7 +64,6 @@
     appId: "1:990842266634:web:95f5c7559868fda0e0abf3",
     measurementId: "G-SWL650B800"
   };
-
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
@@ -80,12 +80,13 @@
     const segmentColors = [];
     snapshot.forEach((child) => {
       const name = child.val();
-      entries.push({ key: child.key, name: name });
-      segmentColors.push(`hsl(${Math.random()*360}, 70%, 60%)`);
+      entries.push({ key: child.key, name });
+      segmentColors.push(`hsl(${Math.random()*360},70%,60%)`);
     });
 
     document.getElementById("list").innerHTML = entries.map(e => `<li>${e.name}</li>`).join("");
 
+    // Create wheel after Winwheel is loaded
     wheel = new Winwheel({
       canvasId: 'wheelCanvas',
       numSegments: entries.length || 1,
@@ -94,14 +95,14 @@
     });
   });
 
-  // Add entry
+  // Add anime entry
   document.getElementById("addEntry").onclick = () => {
     const input = document.getElementById("nameInput");
     const name = input.value.trim();
     if(!name) return;
 
     // Duplicate prevention
-    if(entries.some(e => e.name.toLowerCase() === name.toLowerCase())){
+    if(entries.some(e=>e.name.toLowerCase() === name.toLowerCase())){
       alert("Anime already added!");
       return;
     }
@@ -112,19 +113,18 @@
 
   // Spin button
   document.getElementById("spin").onclick = () => {
-    if(!isHost) return;
-    if(!wheel || entries.length === 0) return;
+    if(!isHost || !wheel || entries.length===0) return;
     wheel.startAnimation();
   };
 
   // Spin finished callback
-  function onSpinFinished(indicatedSegment){
-    const winner = indicatedSegment.text;
+  function onSpinFinished(segment){
+    const winner = segment.text;
 
     // Show winner only to host
     if(isHost){
       document.getElementById("winnerText").innerText = winner;
-      document.getElementById("winnerModal").style.display = "block";
+      document.getElementById("winnerModal").style.display="block";
     }
 
     // Auto-remove winner
@@ -134,8 +134,9 @@
 
   // Winner modal close
   const closeBtn = document.getElementById("closeWinner");
-  if(!isHost) closeBtn.style.display = "none";
+  if(!isHost) closeBtn.style.display="none";
   closeBtn.onclick = ()=>{ document.getElementById("winnerModal").style.display="none"; };
+};
 </script>
 
 </body>
